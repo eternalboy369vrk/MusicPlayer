@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Music Player</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="icon" href="images/my-icon.jpg" />
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tborder">
+    <div class="music-player">
+      <canvas id="canvas"></canvas>
+    </div>
+    <div></div>
+    <div class="border-dec">
+      <div class="player">
+        <div class="top">
+          <button class="small">
+            <div class="inner_button">
+              <i class="fas fa-arrow-left" style="font-size: 10px;"></i>
+            </div>
+          </button>
+          <p class="indicator">PLAYING NOW</p>
+          <button class="small">
+            <div class="inner_button">
+              <i class="fas fa-bars"></i>
+            </div>
+          </button>
+        </div>
+
+        <div class="rotate"></div>
+        <div class="center">
+          <img class="album" id="album-cover" src="images/rose.jpg" alt="Album Cover">
+        </div>
+
+        <div class="song_details">
+          <div id="song-name" style="font-size: 20px;"></div>
+          <div id="song-artist" style="margin-top: 7px;font-size: 10px;"></div>
+        </div>
+
+        <div class="slider">
+          <div class="time">
+            <div id="current-time">0:00</div>
+            <div id="total-time">2:46</div>
+          </div>
+          <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <div class="border"> 
+            <button class="big">
+              <div class="inner_button_big">
+                <i class="fas fa-backward" style="font-size: 15px;"></i>
+              </div>
+            </button>
+          </div>
+          <div class="border"> 
+            <button class="big_play_pause">
+              <div class="playpause">
+                <i class="fas fa-play" style="font-size: 15px;"></i>
+              </div>
+            </button>
+          </div>
+          <div class="border"> 
+            <button class="big bignext">
+              <div class="inner_button_big">
+                <i class="fas fa-forward" style="font-size: 15px;"></i>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="vrk-container">
+      <div class="vrk-card">
+        <h2>VRK</h2>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    this is a simple music player @copyright by Rocky
+  </div>
+
+  <script>
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 600;
+    canvas.height = 200;
+
+    const songDetails = [
+      { name: "Sulthana", artist: "Future ft. The Weeknd", src: "audio/Sulthana.mp3", cover: "images/rocky.jpg" },
+      { name: "Fire", artist: "Artist Name", src: "audio/Fire.mp3", cover: "images/kanguva.jpg" },
+      { name: "Psycho Saiyaan", artist: "Artist Name", src: "audio/Psycho Saiyaan.mp3", cover: "images/psycho.jpg" }
+    ];
+
+    let currentIndex = 0;
+    let currentAudio = null;
+    let currentSource = null;
+
+    const songname = document.getElementById("song-name");
+    const artist = document.getElementById("song-artist");
+    const currentTimeElement = document.getElementById("current-time");
+    const totalTimeElement = document.getElementById("total-time");
+    const progressBar = document.getElementById("progress-bar");
+    const albumCover = document.getElementById("album-cover");
+
+    updateSongDetails();
+
+    function updateSongDetails() {
+      songname.textContent = songDetails[currentIndex].name;
+      artist.textContent = songDetails[currentIndex].artist;
+      totalTimeElement.textContent = "2:46"; // Placeholder, will be updated when audio is loaded
+      progressBar.style.width = '0%'; // Reset progress bar
+      albumCover.src = songDetails[currentIndex].cover; // Update album cover
+    }
+
+    function formatTime(time) {
+      const minutes = Math.floor(time / 60);
+      const seconds = Math.floor(time % 60);
+      return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
+
+    function draw() {
+      requestAnimationFrame(draw);
+      analyser.getByteFrequencyData(dataArray);
+
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const barWidth = (canvas.width / bufferLength) * 2.5;
+      let barHeight;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        barHeight = dataArray[i];
+
+        ctx.fillStyle = '#eff302';
+        ctx.fillRect(x, canvas.height - barHeight / 2, barWidth, barHeight / 2);
+
+        x += barWidth + 1;
+      }
+    }
+
+    function connectAudio() {
+      if (currentSource) {
+        currentSource.disconnect();
+      }
+      currentSource = audioContext.createMediaElementSource(currentAudio);
+      currentSource.connect(analyser);
+      analyser.connect(audioContext.destination);
+    }
+
+    function loadAudio() {
+      if (currentAudio) {
+        currentAudio.pause();
+      }
+      currentAudio = new Audio(songDetails[currentIndex].src);
+      connectAudio();
+      currentAudio.addEventListener('loadedmetadata', () => {
+        totalTimeElement.textContent = formatTime(currentAudio.duration);
+        progressBar.style.width = '0%'; // Reset progress bar to 0
+      });
+      currentAudio.addEventListener('timeupdate', () => {
+        currentTimeElement.textContent = formatTime(currentAudio.currentTime);
+        const progressPercentage = (currentAudio.currentTime / currentAudio.duration) * 100;
+        progressBar.style.width = progressPercentage + '%'; // Update progress bar width
+      });
+      currentAudio.addEventListener('ended', () => {
+        nextSong();
+      });
+    }
+
+    const playbtn = document.querySelector(".big_play_pause");
+    playbtn.addEventListener('click', () => {
+      if (currentAudio.paused) {
+        audioContext.resume().then(() => {
+          currentAudio.play().catch(error => {
+            console.error("Error playing audio:", error);
+          });
+          draw();
+        });
+      } else {
+        currentAudio.pause();
+      }
+    });
+
+    const nextbtn = document.querySelector(".bignext");
+    nextbtn.addEventListener('click', () => {
+      nextSong();
+    });
+
+    const prebtn = document.querySelector(".big");
+    prebtn.addEventListener('click', () => {
+      previousSong();
+    });
+
+    function nextSong() {
+      currentIndex = (currentIndex + 1) % songDetails.length;
+      loadAudio();
+      currentAudio.play();
+      updateSongDetails();
+    }
+
+    function previousSong() {
+      currentIndex = (currentIndex - 1 + songDetails.length) % songDetails.length;
+      loadAudio();
+      currentAudio.play();
+      updateSongDetails();
+    }
+
+    // Allow user to seek through the song by clicking on the progress bar
+    const progressContainer = document.querySelector('.progress-container');
+    progressContainer.addEventListener('click', (event) => {
+      const totalWidth = progressContainer.offsetWidth;
+      const clickX = event.clientX - progressContainer.getBoundingClientRect().left;
+      const percentage = clickX / totalWidth;
+      currentAudio.currentTime = percentage * currentAudio.duration; // Set current time based on click
+    });
+
+    loadAudio();
+  </script>
+</body>
+</html>
